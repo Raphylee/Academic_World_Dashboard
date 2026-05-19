@@ -1,0 +1,15 @@
+packages:
+  "recharts": "For data visualization charts"
+  "react-force-graph-2d": "For Neo4j collaboration network graph"
+  "framer-motion": "For page transitions and animations"
+  "clsx": "Utility for conditional classes"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+
+images:
+  - path: "artifacts/dashboard/public/images/abstract-data-bg.png"
+    description: "Dark, moody, abstract representation of flowing data and glowing nodes in deep navy, slate, and cyan colors, highly professional and academic"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using generated API hooks from @workspace/api-client-react
+  - Implementing dark theme by default

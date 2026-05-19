@@ -1,0 +1,232 @@
+from typing import List
+import math
+
+
+class Node:
+    """
+    This class, Node, represents a single node in a decision tree. It is designed to store information about the tree
+    structure and the specific split criteria at each node. It is important to note that this class should NOT be
+    modified as it is part of the assignment and will be used by the autograder.
+
+    The attributes of the Node class are:
+    - split_dim: The dimension/feature along which the node splits the data (-1 by default, indicating uninitialized)
+    - split_point: The value used for splitting the data at this node (-1 by default, indicating uninitialized)
+    - label: The class label assigned to this node, which is the majority label of the data at this node. If there is a tie,
+      the numerically smaller label is assigned (-1 by default, indicating uninitialized)
+    - left: The left child node of this node (None by default). Either None or a Node object.
+    - right: The right child node of this node (None by default) Either None or a Node object.
+    """
+
+    def __init__(self):
+        self.split_dim = -1
+        self.split_point = -1
+        self.label = -1
+        self.left = None
+        self.right = None
+
+
+class Solution:
+    """
+    Decision tree with maximum depth 2, using information gain (entropy) as the split criterion.
+    """
+
+    # ---------- Helper: entropy ----------
+
+    def _entropy(self, labels: List[int]) -> float:
+        if not labels:
+            return 0.0
+        total = len(labels)
+        counts = {}
+        for y in labels:
+            counts[y] = counts.get(y, 0) + 1
+        ent = 0.0
+        for c in counts.values():
+            p = c / total
+            if p > 0:
+                ent -= p * math.log2(p)
+        return ent
+
+    # ---------- Required: split_info ----------
+
+    def split_info(
+        self,
+        data: List[List[float]],
+        label: List[int],
+        split_dim: int,
+        split_point: float,
+    ) -> float:
+        """
+        Compute the information needed to classify a dataset if it's split
+        with the given splitting dimension and splitting point, i.e. Info_A.
+
+        Info_A = (|S_L|/|S|)*H(S_L) + (|S_R|/|S|)*H(S_R)
+        where:
+          S_L = {i | data[i][split_dim] <  split_point}
+          S_R = {i | data[i][split_dim] >= split_point}
+        """
+        n = len(data)
+        if n == 0:
+            return 0.0
+
+        left_labels = []
+        right_labels = []
+        for x, y in zip(data, label):
+            if x[split_dim] < split_point:
+                left_labels.append(y)
+            else:
+                right_labels.append(y)
+
+        n_left = len(left_labels)
+        n_right = len(right_labels)
+
+        # If one side is empty, this split is useless; treat as maximal info
+        if n_left == 0 or n_right == 0:
+            return float("inf")
+
+        ent_left = self._entropy(left_labels)
+        ent_right = self._entropy(right_labels)
+
+        info_a = (n_left / n) * ent_left + (n_right / n) * ent_right
+        return info_a
+
+    # ---------- Helper: majority label ----------
+
+    def _majority_label(self, labels: List[int]) -> int:
+        counts = {}
+        for y in labels:
+            counts[y] = counts.get(y, 0) + 1
+        max_count = max(counts.values())
+        # tie → smaller label
+        candidates = [lbl for lbl, c in counts.items() if c == max_count]
+        return min(candidates)
+
+    # ---------- Helper: check purity ----------
+
+    def _is_pure(self, labels: List[int]) -> bool:
+        return len(set(labels)) <= 1
+
+    # ---------- Helper: find best split ----------
+
+    def _find_best_split(
+        self, data: List[List[float]], labels: List[int]
+    ):
+        """
+        Search over all dimensions and candidate split points (midpoints between
+        sorted unique values) to find the split with minimum Info_A.
+        Returns (best_dim, best_point, best_info).
+        If no valid split, returns (None, None, None).
+        """
+        if not data:
+            return None, None, None
+
+        n_samples = len(data)
+        n_features = len(data[0])
+
+        best_dim = None
+        best_point = None
+        best_info = float("inf")
+
+        for d in range(n_features):
+            # collect sorted unique values for this dimension
+            values = sorted(set(x[d] for x in data))
+            if len(values) <= 1:
+                continue
+
+            # candidate split points: midpoints between consecutive unique values
+            candidates = []
+            for i in range(len(values) - 1):
+                candidates.append((values[i] + values[i + 1]) / 2.0)
+
+            for sp in candidates:
+                info = self.split_info(data, labels, d, sp)
+                if info < best_info:
+                    best_info = info
+                    best_dim = d
+                    best_point = sp
+
+        if best_dim is None:
+            return None, None, None
+        return best_dim, best_point, best_info
+
+    # ---------- Recursive tree builder (max depth = 2) ----------
+
+    def _build_tree(
+        self,
+        node: Node,
+        data: List[List[float]],
+        labels: List[int],
+        depth: int,
+        max_depth: int = 2,
+    ) -> None:
+        # assign majority label at this node
+        node.label = self._majority_label(labels)
+
+        # stopping conditions: max depth or pure node or no data
+        if depth >= max_depth or self._is_pure(labels) or not data:
+            return
+
+        best_dim, best_point, best_info = self._find_best_split(data, labels)
+        if best_dim is None or best_info == float("inf"):
+            # no valid split
+            return
+
+        node.split_dim = best_dim
+        node.split_point = best_point
+
+        # partition data
+        left_data, left_labels = [], []
+        right_data, right_labels = [], []
+        for x, y in zip(data, labels):
+            if x[best_dim] < best_point:
+                left_data.append(x)
+                left_labels.append(y)
+            else:
+                right_data.append(x)
+                right_labels.append(y)
+
+        # if one side is empty, stop splitting
+        if not left_data or not right_data:
+            return
+
+        node.left = Node()
+        node.right = Node()
+
+        self._build_tree(node.left, left_data, left_labels, depth + 1, max_depth)
+        self._build_tree(node.right, right_data, right_labels, depth + 1, max_depth)
+
+    # ---------- Required: fit ----------
+
+    def fit(self, train_data: List[List[float]], train_label: List[int]) -> None:
+        """
+        Build the decision tree (max depth = 2) from training data.
+        """
+        self.root = Node()
+        self._build_tree(self.root, train_data, train_label, depth=0, max_depth=2)
+
+    # ---------- Helper: predict one sample ----------
+
+    def _predict_one(self, x: List[float]) -> int:
+        node = self.root
+        while node.left is not None and node.right is not None:
+            if x[node.split_dim] < node.split_point:
+                node = node.left
+            else:
+                node = node.right
+        return node.label
+
+    # ---------- Required: classify ----------
+
+    def classify(
+        self,
+        train_data: List[List[float]],
+        train_label: List[int],
+        test_data: List[List[float]],
+    ) -> List[int]:
+        """
+        Fit the decision tree on train_data/train_label, then predict labels for test_data.
+        """
+        self.fit(train_data, train_label)
+        preds = []
+        for x in test_data:
+            preds.append(self._predict_one(x))
+        return preds

@@ -1,0 +1,876 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.2.0
+  description: Academic World Dashboard API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: mysql
+  - name: mongo
+  - name: neo4j
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── MySQL endpoints ───────────────────────────────────────────────────────
+  /mysql/stats:
+    get:
+      operationId: mysqlStats
+      tags: [mysql]
+      summary: Dashboard summary statistics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /mysql/publications-by-year:
+    get:
+      operationId: mysqlPublicationsByYear
+      tags: [mysql]
+      summary: Publication count per year
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YearCount"
+
+  /mysql/top-keywords:
+    get:
+      operationId: mysqlTopKeywords
+      tags: [mysql]
+      summary: Top keywords by publication count
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KeywordCount"
+
+  /mysql/faculty-search:
+    get:
+      operationId: mysqlFacultySearch
+      tags: [mysql]
+      summary: Search faculty by name
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FacultyResult"
+
+  /mysql/faculty-publications:
+    get:
+      operationId: mysqlFacultyPublications
+      tags: [mysql]
+      summary: Get publications for a faculty member
+      parameters:
+        - in: query
+          name: facultyId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicationResult"
+
+  /mysql/keyword-trend:
+    get:
+      operationId: mysqlKeywordTrend
+      tags: [mysql]
+      summary: Publication count per year for a keyword
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YearCount"
+
+  /mysql/top-universities:
+    get:
+      operationId: mysqlTopUniversities
+      tags: [mysql]
+      summary: Top universities by publication count
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UniversityCount"
+
+  /mysql/faculty-hindex:
+    get:
+      operationId: mysqlFacultyHindex
+      tags: [mysql]
+      summary: Faculty ranked by H-index (window functions + CTE)
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 15
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FacultyHindex"
+
+  /mysql/keyword-cooccurrence:
+    get:
+      operationId: mysqlKeywordCooccurrence
+      tags: [mysql]
+      summary: Keywords that frequently co-occur (self-join)
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 12
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CooccurrenceResult"
+
+  /mysql/university-profile:
+    get:
+      operationId: mysqlUniversityProfile
+      tags: [mysql]
+      summary: University research profile (multi-level aggregation)
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UniversityProfile"
+
+  /mysql/favorite-keywords:
+    get:
+      operationId: mysqlGetFavoriteKeywords
+      tags: [mysql]
+      summary: Get user favorite keywords
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FavoriteKeyword"
+    post:
+      operationId: mysqlAddFavoriteKeyword
+      tags: [mysql]
+      summary: Add favorite keyword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddFavoriteKeywordRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteKeyword"
+
+  /mysql/favorite-keywords/{id}:
+    delete:
+      operationId: mysqlDeleteFavoriteKeyword
+      tags: [mysql]
+      summary: Remove favorite keyword
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+
+  # ── MongoDB endpoints ─────────────────────────────────────────────────────
+  /mongo/publication-details:
+    get:
+      operationId: mongoPublicationDetails
+      tags: [mongo]
+      summary: Full-text publication search
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicationDetail"
+
+  /mongo/faculty-keyword-scores:
+    get:
+      operationId: mongoFacultyKeywordScores
+      tags: [mongo]
+      summary: Faculty ranked by score for a keyword
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FacultyScore"
+
+  /mongo/keyword-stats:
+    get:
+      operationId: mongoKeywordStats
+      tags: [mongo]
+      summary: Aggregate stats for a keyword
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeywordStats"
+
+  /mongo/top-cited:
+    get:
+      operationId: mongoTopCited
+      tags: [mongo]
+      summary: Top cited publications
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicationDetail"
+
+  /mongo/venue-analysis:
+    get:
+      operationId: mongoVenueAnalysis
+      tags: [mongo]
+      summary: Publication venue citation impact analysis (facet pipeline)
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 15
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VenueStats"
+
+  /mongo/year-activity:
+    get:
+      operationId: mongoYearActivity
+      tags: [mongo]
+      summary: Publication activity by year across entire dataset
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YearActivity"
+
+  # ── Neo4j endpoints ───────────────────────────────────────────────────────
+  /neo4j/collaboration-network:
+    get:
+      operationId: neo4jCollaborationNetwork
+      tags: [neo4j]
+      summary: Co-author collaboration network
+      parameters:
+        - in: query
+          name: facultyName
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: depth
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphData"
+
+  /neo4j/faculty-keywords:
+    get:
+      operationId: neo4jFacultyKeywords
+      tags: [neo4j]
+      summary: Keywords associated with a faculty member
+      parameters:
+        - in: query
+          name: facultyName
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 15
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FacultyKeywordScore"
+
+  /neo4j/keyword-experts:
+    get:
+      operationId: neo4jKeywordExperts
+      tags: [neo4j]
+      summary: Top faculty experts for a keyword
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FacultyScore"
+
+  /neo4j/research-path:
+    get:
+      operationId: neo4jResearchPath
+      tags: [neo4j]
+      summary: Shortest collaboration path between two faculty
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchPath"
+
+  /neo4j/network-centrality:
+    get:
+      operationId: neo4jNetworkCentrality
+      tags: [neo4j]
+      summary: Most connected faculty by degree centrality
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 15
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CentralityResult"
+
+  /neo4j/research-clusters:
+    get:
+      operationId: neo4jResearchClusters
+      tags: [neo4j]
+      summary: Discover research clusters via graph connected components
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClusterMember"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    KeywordCount:
+      type: object
+      properties:
+        keyword:
+          type: string
+        count:
+          type: integer
+      required: [keyword, count]
+
+    YearCount:
+      type: object
+      properties:
+        year:
+          type: integer
+        count:
+          type: integer
+      required: [year, count]
+
+    YearActivity:
+      type: object
+      properties:
+        year:
+          type: integer
+        publications:
+          type: integer
+        totalCitations:
+          type: integer
+      required: [year, publications, totalCitations]
+
+    UniversityCount:
+      type: object
+      properties:
+        university:
+          type: string
+        count:
+          type: integer
+      required: [university, count]
+
+    UniversityProfile:
+      type: object
+      properties:
+        university:
+          type: string
+        facultyCount:
+          type: integer
+        totalPublications:
+          type: integer
+        avgCitations:
+          type: number
+        keywordDiversity:
+          type: integer
+        topKeyword:
+          type: string
+      required: [university, facultyCount, totalPublications, avgCitations, keywordDiversity]
+
+    FacultyResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        position:
+          type: string
+        university:
+          type: string
+        email:
+          type: string
+        photoUrl:
+          type: string
+      required: [id, name]
+
+    FacultyHindex:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        university:
+          type: string
+        hIndex:
+          type: integer
+        totalPublications:
+          type: integer
+        totalCitations:
+          type: integer
+      required: [id, name, hIndex, totalPublications, totalCitations]
+
+    CooccurrenceResult:
+      type: object
+      properties:
+        keyword:
+          type: string
+        cooccurrences:
+          type: integer
+      required: [keyword, cooccurrences]
+
+    PublicationResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        year:
+          type: integer
+        numCitations:
+          type: integer
+        venue:
+          type: string
+      required: [id, title]
+
+    PublicationDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        year:
+          type: integer
+        numCitations:
+          type: integer
+        venue:
+          type: string
+        abstract:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+      required: [id, title]
+
+    FacultyScore:
+      type: object
+      properties:
+        name:
+          type: string
+        university:
+          type: string
+        score:
+          type: number
+      required: [name, score]
+
+    FacultyKeywordScore:
+      type: object
+      properties:
+        keyword:
+          type: string
+        score:
+          type: number
+      required: [keyword, score]
+
+    KeywordStats:
+      type: object
+      properties:
+        keyword:
+          type: string
+        totalPublications:
+          type: integer
+        totalCitations:
+          type: integer
+        avgCitations:
+          type: number
+        topVenue:
+          type: string
+      required: [keyword, totalPublications, totalCitations, avgCitations]
+
+    VenueStats:
+      type: object
+      properties:
+        venue:
+          type: string
+        totalPublications:
+          type: integer
+        totalCitations:
+          type: integer
+        avgCitations:
+          type: number
+      required: [venue, totalPublications, totalCitations, avgCitations]
+
+    GraphData:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+      required: [nodes, edges]
+
+    GraphNode:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+        university:
+          type: string
+      required: [id, label]
+
+    GraphEdge:
+      type: object
+      properties:
+        source:
+          type: string
+        target:
+          type: string
+        weight:
+          type: integer
+      required: [source, target]
+
+    ResearchPath:
+      type: object
+      properties:
+        path:
+          type: array
+          items:
+            type: string
+        length:
+          type: integer
+      required: [path, length]
+
+    CentralityResult:
+      type: object
+      properties:
+        name:
+          type: string
+        university:
+          type: string
+        degree:
+          type: integer
+        sharedPubs:
+          type: integer
+      required: [name, degree, sharedPubs]
+
+    ClusterMember:
+      type: object
+      properties:
+        name:
+          type: string
+        university:
+          type: string
+        score:
+          type: number
+      required: [name, score]
+
+    DashboardStats:
+      type: object
+      properties:
+        facultyCount:
+          type: integer
+        publicationCount:
+          type: integer
+        keywordCount:
+          type: integer
+        totalCitations:
+          type: integer
+      required: [facultyCount, publicationCount, keywordCount, totalCitations]
+
+    YearCount:
+      type: object
+      properties:
+        year:
+          type: integer
+        count:
+          type: integer
+      required: [year, count]
+
+    FavoriteKeyword:
+      type: object
+      properties:
+        id:
+          type: integer
+        keyword:
+          type: string
+        createdAt:
+          type: string
+      required: [id, keyword]
+
+    AddFavoriteKeywordRequest:
+      type: object
+      properties:
+        keyword:
+          type: string
+      required: [keyword]
+
+    DeleteResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
